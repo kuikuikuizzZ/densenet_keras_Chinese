@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## 简介
 基于Tensorflow和Keras实现端到端的不定长中文字符检测和识别
 
@@ -71,3 +72,7 @@ python train.py
 [3] https://github.com/chineseocr/chinese-ocr
 
 [4] https://github.com/xiaomaxiao/keras_ocr
+=======
+# crnn_keras_Chinese
+用于识别中文crnn
+>>>>>>> 2032871e940fe27416717de32db0d782ef50982a
