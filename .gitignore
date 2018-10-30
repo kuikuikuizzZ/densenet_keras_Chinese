@@ -14,3 +14,4 @@ logs/
 output/
 train/models
 train/images
+models/
