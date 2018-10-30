@@ -14,16 +14,21 @@ from . import densenet
 reload(densenet)
 
 characters = keys.alphabet[:]
+# print('len character',len(characters),characters[0])
 characters = characters[1:] + u'卍'
+# print('len character',len(characters),characters[0])
 nclass = len(characters)
+
 
 input = Input(shape=(32, None, 1), name='the_input')
 y_pred= densenet.dense_cnn(input, nclass)
 basemodel = Model(inputs=input, outputs=y_pred)
 
-modelPath = os.path.join(os.getcwd(), 'densenet/models/weights_densenet.h5')
+modelPath = os.path.join(os.getcwd(), 'train/models/weights_densenet-09-0.58.h5')
+print('model path',modelPath)
 if os.path.exists(modelPath):
     basemodel.load_weights(modelPath)
+    print('model loaded')
 
 def decode(pred):
     char_list = []
@@ -37,7 +42,7 @@ def predict(img):
     width, height = img.size[0], img.size[1]
     scale = height * 1.0 / 32
     width = int(width / scale)
-    
+     
     img = img.resize([width, 32], Image.ANTIALIAS)
    
     '''
@@ -48,9 +53,9 @@ def predict(img):
     '''
 
     img = np.array(img).astype(np.float32) / 255.0 - 0.5
-    
+    print(img.shape)
     X = img.reshape([1, 32, width, 1])
-    
+    print(X.shape)
     y_pred = basemodel.predict(X)
     y_pred = y_pred[:, :, :]
 

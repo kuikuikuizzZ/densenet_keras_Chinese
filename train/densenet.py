@@ -70,7 +70,7 @@ def dense_cnn(input, nclass):
 
     x = Permute((2, 1, 3), name='permute')(x)
     x = TimeDistributed(Flatten(), name='flatten')(x)
-    y_pred = Dense(nclass, name='out', activation='softmax')(x)
+    y_pred = Dense(nclass, name='y_pred_out', activation='softmax')(x)
 
     # basemodel = Model(inputs=input, outputs=y_pred)
     # basemodel.summary()

@@ -101,6 +101,7 @@ def gen(data_file, image_path, batchsize=128, maxlabellength=10, imagesize=(32, 
             if(len(str) <= 0):
                 print("len < 0", j)
             input_length[i] = imagesize[1] // 8
+            # int(k) - 1 的意思是生成的label已经在read_file中转成了index,不过这个index是后移了一位的，需要-1恢复过来
             labels[i, :len(str)] = [int(k) - 1 for k in str]
 
         inputs = {'the_input': x,
@@ -135,6 +136,7 @@ def get_model(img_h, nclass):
 
 
 if __name__ == '__main__':
+    # 以卍作为占位符，
     char_set = open('char_std_5990.txt', 'r', encoding='utf-8').readlines()
     char_set = ''.join([ch.strip('\n') for ch in char_set][1:] + ['卍'])
     nclass = len(char_set)
