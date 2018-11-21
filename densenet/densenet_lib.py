@@ -8,14 +8,16 @@ import  densenet.keys as keys
 import densenet.densenet as densenet
 import difflib
 import numpy as np
-from PIL import Image,ImageOps
 import cv2
+import tensorflow as tf
+import keras.backend.tensorflow_backend as KTF
+
 from keras.layers import Input
 from keras.models import Model
 from imp import reload
 from keras.backend import ctc_decode,eval
-import tensorflow as tf
-import keras.backend.tensorflow_backend as KTF
+from PIL import Image,ImageOps
+from keras.utils import  multi_gpu_model
 import time
 characters = keys.alphabet_union[:]
 characters = characters[1:] + u'卍'
@@ -31,23 +33,31 @@ model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 
 
 class Densenet_keras(object):
-    def __init__(self,model_path=model_path,characters=characters,height=32):
+    def __init__(self,get_model_function,model_path=model_path,characters=characters,height=32):
         self.height = height
         self.nClass = len(characters)
         self.characters = characters
-        if KTF._get_available_gpus():
+        self.gpus = KTF._get_available_gpus()
+        if self.gpus:
             self.config = tf.ConfigProto()
-            self.config.gpu_options.per_process_gpu_memory_fraction = 0.9
+            self.config.gpu_options.per_process_gpu_memory_fraction = 0.95
             self.session = tf.Session(config=self.config)
             KTF.set_session(self.session)
-        self.basemodel = self.get_model(height=self.height,nClass=self.nClass)
-        self.basemodel.load_weights(model_path)
+            if len(self.gpus)==1:
+                self.basemodel = get_model_function(height=self.height,nClass=self.nClass)
+                self.basemodel.load_weights(model_path)
+                self.predict_batch=512
+            else:
+                with tf.device('/cpu:0'):
+                    model_template = get_model_function(height=self.height,nClass=self.nClass)
+                    model_template.load_weights(model_path)
+                self.basemodel = multi_gpu_model(model_template,len(self.gpus))
+                self.predict_batch=len(self.gpus)*512
+        else:
+            self.basemodel = get_model_function(height=self.height,nClass=self.nClass)
+            self.basemodel.load_weights(model_path)
         
-    def get_model(self,height=32,nClass=len(characters)):
-        input_tensor = Input(shape=(height,None,1),name='the_input')
-        y_pred = densenet.dense_cnn(input_tensor, nClass)
-        basemodel = Model(inputs=input_tensor,outputs=y_pred)
-        return basemodel
+
         
     def recognize(self,img):
         img_L = img.astype(np.float32)
@@ -127,6 +137,7 @@ class Densenet_keras(object):
         print('loaded model')
         
     def recognize_on_batch(self,img_list,with_confidence=False):
+#         start = time.time()
         max_w = int(max([32.0/img.shape[0]*img.shape[1] for img in img_list]))
 #         print(max_w)
 #         assert len(img_list) < 128
@@ -141,8 +152,14 @@ class Densenet_keras(object):
             img = img/ 255.0 - 0.5
             img = img.reshape((32, w, 1))
             img_batch[i,:,:w,:] = img
+        end = time.time()
+#         print('process use ' ,end-start)
         KTF.set_session(self.session)
-        y_pred = self.basemodel.predict(img_batch)
+#         print(time.time()-end)
+        start = time.time()
+        y_pred = self.basemodel.predict(img_batch,batch_size=self.predict_batch)
+        end = time.time()
+        print('process use ' ,end-start)
         y_pred = y_pred[:, :, :]
         out_list = []
         for i in range(y_pred.shape[0]):
@@ -153,7 +170,6 @@ class Densenet_keras(object):
             
 
 
-
 if __name__ == '__main__':
     import cv2
     densenet_keras = Densenet_keras()
@@ -161,6 +177,9 @@ if __name__ == '__main__':
     image = cv2.imread(img_path)
     text = densenet_keras.recognize(image)
     print(text)
+
+
+
 
 
 

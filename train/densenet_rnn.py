@@ -42,41 +42,6 @@ def transition_block(input, nb_filter,dropout_rate=None, pooltype=1, weight_deca
         x = AveragePooling2D((2, 2), strides=(2, 1),name=name + '_2_avgpool')(x)
     return x, nb_filter
 
-def dense_cnn(input, nclass):
-
-    _dropout_rate = 0.2 
-    _weight_decay = 1e-4
-
-    _nb_filter = 64
-    # conv 64 5*5 s=2
-    x = Conv2D(_nb_filter, (5, 5), strides=(2, 2), kernel_initializer='he_normal', padding='same',
-               use_bias=False, kernel_regularizer=l2(_weight_decay),name='conv1/conv')(input)
-   
-    # 64 + 8 * 8 = 128
-    x, _nb_filter = dense_block(x, 8, _nb_filter, 8, None, _weight_decay,name='conv2',)
-    # 128
-    x, _nb_filter = transition_block(x, 128, _dropout_rate, 2, _weight_decay,name='pool2')
-
-    # 128 + 8 * 8 = 192
-    x, _nb_filter = dense_block(x, 8, _nb_filter, 8, None, _weight_decay,name='conv3')
-    # 192 -> 128
-    x, _nb_filter = transition_block(x, 128, _dropout_rate, 2, _weight_decay,name='pool3')
-
-    # 128 + 8 * 8 = 192
-    x, _nb_filter = dense_block(x, 8, _nb_filter, 8, None, _weight_decay,name='conv4')
-
-    x = BatchNormalization(axis=-1, epsilon=1.1e-5,name='bn')(x)
-    x = Activation('relu',name='relu')(x)
-
-    x = Permute((2, 1, 3), name='permute')(x)
-    x = TimeDistributed(Flatten(), name='flatten')(x)
-    y_pred = Dense(nclass, name='out', activation='softmax')(x)
-
-    # basemodel = Model(inputs=input, outputs=y_pred)
-    # basemodel.summary()
-
-    return y_pred
-
 def dense_rnn(input, nclass,rnn_unit=256):
 
     _dropout_rate = 0.2 
@@ -120,3 +85,55 @@ def dense_rnn(input, nclass,rnn_unit=256):
 
     return y_pred
 
+
+
+def dense_rnn_no_dense(input,rnn_unit=256):
+
+    _dropout_rate = 0.2 
+    _weight_decay = 1e-4
+
+    _nb_filter = 64
+    # conv 64 5*5 s=2
+    x = Conv2D(_nb_filter, (5, 5), strides=(2, 2), kernel_initializer='he_normal', padding='same',
+               use_bias=False, kernel_regularizer=l2(_weight_decay),name='conv1/conv')(input)
+   
+    # 64 + 8 * 8 = 128
+    x, _nb_filter = dense_block(x, 8, _nb_filter, 8, None, _weight_decay,name='conv2',)
+    # 128
+    x, _nb_filter = transition_block(x, 128, _dropout_rate, 2, _weight_decay,name='pool2')
+
+    # 128 + 8 * 8 = 192
+    x, _nb_filter = dense_block(x, 8, _nb_filter, 8, None, _weight_decay,name='conv3')
+    # 192 -> 128
+    x, _nb_filter = transition_block(x, 128, _dropout_rate, 2, _weight_decay,name='pool3')
+
+    # 128 + 8 * 8 = 192
+    x, _nb_filter = dense_block(x, 8, _nb_filter, 8, None, _weight_decay,name='conv4')
+
+    x = BatchNormalization(axis=-1, epsilon=1.1e-5,name='bn')(x)
+    x = Activation('relu',name='relu')(x)
+
+    x = Permute((2, 1, 3), name='permute')(x)
+    x = TimeDistributed(Flatten(), name='flatten')(x)
+    # cnn之后链接双向GRU，双向GRU会输出固定长度的序列，这是一个encode的过程，之后再连接一个双向GRU，对该序列进行解码
+    # 该序列的输出为长度为256的序列
+    # cnn之后连接双向GRU
+    x = Bidirectional(GRU(rnn_unit, return_sequences=True), name='GRU_1')(x)
+    # 全连接层-rnnunit为全连接层的输出维度
+    x= Dense(rnn_unit, name='GRU1_out', activation='linear')(x)
+    # 连接双向GRU
+    x = Bidirectional(GRU(rnn_unit, return_sequences=True), name='GRU_2')(x)
+    # 全连接输出
+#     y_pred = Dense(nclass, name='y_pred_out', activation='softmax')(x)
+
+    # basemodel = Model(inputs=input, outputs=y_pred)
+    # basemodel.summary()
+
+    return x
+
+def dense_blstm(input):
+
+    pass
+
+input = Input(shape=(32, 280, 1), name='the_input')
+dense_rnn(input, 5000)
