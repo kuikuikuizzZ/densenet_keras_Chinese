@@ -43,7 +43,7 @@ class Densenet_keras(object):
         self.gpus = KTF._get_available_gpus()
         if self.gpus:
             self.config = tf.ConfigProto()
-            self.config.gpu_options.per_process_gpu_memory_fraction = 0.95
+            self.config.gpu_options.per_process_gpu_memory_fraction = 0.4
             self.session = tf.Session(config=self.config)
             KTF.set_session(self.session)
             if len(self.gpus)==1:
@@ -324,18 +324,21 @@ class Densenet_tf_multi_gpus(object):
         self.characters = characters
         self.graph = tf.Graph()
         self.fixed_batch_size=fixed_batch_size
+        self.num_gpus = num_gpus
         # output_tensor
 #         self.input.set_shape([fixed_batch_size,32,800,1])
-        self.sess = self.load_pb(pb_model_path)
+        self.sess = self.load_pb(pb_model_path,self.num_gpus)
         init_data = np.zeros([self.fixed_batch_size,32,800,1])
         self.sess.run(self.output, {self.input: init_data})
 
-    def load_pb(self,pb_file_path):
-        sess = tf.Session()
+    def load_multi_gpu_model(self,pb_file_path):
+        self.all_input = tf.placeholder(tf.float32, [self.fixed_batch_size, self.height , 800,1], name="all_input")
+        input_splits = tf.split(self.all_input,self.num_gpus)
+#         for d in  
         with gfile.FastGFile(pb_file_path, 'rb') as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
-            sess.graph.as_default()
+            self.graph.as_default()
             # input_tensor
             self.input=  tf.placeholder(tf.float32, [self.fixed_batch_size, self.height , 800,1], name="X")
             self.output = tf.import_graph_def(graph_def, name='',
